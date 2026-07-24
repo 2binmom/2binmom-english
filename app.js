@@ -130,10 +130,7 @@ function onboardingHTML() {
         ${genderPickerHTML()}
       </div>
       <button class="save-btn" id="ob-submit" style="margin-top:16px;">시작하기</button>
-      <footer class="app-footer">
-        ⚠️ 투빈맘(@2bin_mom)이 직접 개발한 앱입니다.<br>
-        무단 복제·배포·상업적 이용 시 법적 조치될 수 있습니다.
-      </footer>
+      ${footerHTML()}
     </div>
   `;
 }
@@ -152,6 +149,17 @@ function bindOnboarding() {
   document.getElementById('ob-submit').addEventListener('click', submit);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
   input.focus();
+}
+
+// ---------- footer ----------
+function footerHTML() {
+  return `
+    <footer class="app-footer">
+      ⚠️ 투빈맘(@2bin_mom)이 직접 개발한 앱입니다.<br>
+      무단 복제·배포·상업적 이용 시 법적 조치될 수 있습니다.
+      <div class="visit-counter">누적 방문 ${visitCount !== null ? visitCount.toLocaleString('ko-KR') : '·'}회</div>
+    </footer>
+  `;
 }
 
 // ---------- main screen ----------
@@ -175,10 +183,7 @@ function mainHTML() {
       <p class="section-title">${state.currentDate.slice(0, 7).replace('-', '년 ')}월 활동 기록</p>
       <div id="charts-slot">${chartsHTML()}</div>
     </main>
-    <footer class="app-footer">
-      ⚠️ 투빈맘(@2bin_mom)이 직접 개발한 앱입니다.<br>
-      무단 복제·배포·상업적 이용 시 법적 조치될 수 있습니다.
-    </footer>
+    ${footerHTML()}
     ${settingsHTML()}
     <div id="toast"></div>
   `;
@@ -931,6 +936,21 @@ function escapeHTML(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// ---------- visit counter ----------
+// 개인정보/방문자 식별 없이, 딱 "총 방문 횟수"만 세는 무료 카운터(가입 불필요, IP·이름 등 저장 안 함)
+let visitCount = null;
+function trackVisit() {
+  fetch('https://abacus.jasoncameron.dev/hit/2binmom-english-journal/visits')
+    .then((r) => r.json())
+    .then((data) => {
+      if (typeof data.value === 'number') {
+        visitCount = data.value;
+        render();
+      }
+    })
+    .catch(() => {});
+}
+
 // ---------- service worker ----------
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -940,3 +960,4 @@ if ('serviceWorker' in navigator) {
 
 // ---------- init ----------
 render();
+trackVisit();
