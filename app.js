@@ -157,7 +157,6 @@ function footerHTML() {
     <footer class="app-footer">
       ⚠️ 투빈맘(@2bin_mom)이 직접 개발한 앱입니다.<br>
       무단 복제·배포·상업적 이용 시 법적 조치될 수 있습니다.
-      <div class="visit-counter">누적 방문 ${visitCount !== null ? visitCount.toLocaleString('ko-KR') : '·'}회</div>
     </footer>
   `;
 }
@@ -937,18 +936,9 @@ function escapeHTML(str) {
 }
 
 // ---------- visit counter ----------
-// 개인정보/방문자 식별 없이, 딱 "총 방문 횟수"만 세는 무료 카운터(가입 불필요, IP·이름 등 저장 안 함)
-let visitCount = null;
+// 앱 안에는 표시 안 함(2bin님만 링크로 비공개 확인) - 개인정보 없이 방문 횟수만 조용히 집계
 function trackVisit() {
-  fetch('https://abacus.jasoncameron.dev/hit/2binmom-english-journal/visits')
-    .then((r) => r.json())
-    .then((data) => {
-      if (typeof data.value === 'number') {
-        visitCount = data.value;
-        render();
-      }
-    })
-    .catch(() => {});
+  fetch('https://abacus.jasoncameron.dev/hit/2binmom-english-journal/visits').catch(() => {});
 }
 
 // ---------- service worker ----------
