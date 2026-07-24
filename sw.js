@@ -1,4 +1,4 @@
-const CACHE_NAME = '2bme-cache-v4';
+const CACHE_NAME = '2bme-cache-v5';
 const APP_SHELL = [
   './',
   './index.html',
