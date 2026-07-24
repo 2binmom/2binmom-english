@@ -444,6 +444,46 @@ main {
   flex-shrink: 0;
 }
 
+.gender-picker {
+  display: flex;
+  gap: 10px;
+}
+.gender-btn {
+  flex: 1;
+  border: 2px solid transparent;
+  background: var(--pink-bg);
+  border-radius: 12px;
+  padding: 10px;
+  font-size: 28px;
+  line-height: 1;
+}
+.gender-btn.active {
+  border-color: var(--pink-main);
+  background: white;
+}
+
+.emoji-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.emoji-pick-btn {
+  border: none;
+  background: var(--pink-bg);
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.emoji-pick-btn.active {
+  background: var(--pink-main);
+}
+
 .list-item.confirm-row {
   background: #FFF0F0;
 }

@@ -91,6 +91,30 @@ function render() {
   bindMain();
 }
 
+// ---------- gender / avatar picker (shared by onboarding + settings) ----------
+function genderPickerHTML(selected) {
+  const sel = selected || '👦🏻';
+  return `
+    <div class="form-field">
+      <label>캐릭터</label>
+      <div class="gender-picker">
+        <button type="button" class="gender-btn ${sel === '👦🏻' ? 'active' : ''}" data-gender="👦🏻">👦🏻</button>
+        <button type="button" class="gender-btn ${sel === '👧🏻' ? 'active' : ''}" data-gender="👧🏻">👧🏻</button>
+      </div>
+    </div>
+  `;
+}
+function bindGenderPicker(root, initial) {
+  let selected = initial || '👦🏻';
+  root.querySelectorAll('.gender-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      selected = btn.dataset.gender;
+      root.querySelectorAll('.gender-btn').forEach((b) => b.classList.toggle('active', b === btn));
+    });
+  });
+  return () => selected;
+}
+
 // ---------- onboarding ----------
 function onboardingHTML() {
   return `
@@ -103,6 +127,7 @@ function onboardingHTML() {
           <label>아이 이름</label>
           <input id="ob-name" type="text" placeholder="예: 경빈" maxlength="10">
         </div>
+        ${genderPickerHTML()}
       </div>
       <button class="save-btn" id="ob-submit" style="margin-top:16px;">시작하기</button>
     </div>
@@ -110,10 +135,11 @@ function onboardingHTML() {
 }
 function bindOnboarding() {
   const input = document.getElementById('ob-name');
+  const getGender = bindGenderPicker(document.querySelector('.onboard-screen'));
   const submit = () => {
     const name = input.value.trim();
     if (!name) { input.focus(); return; }
-    const child = { id: uid(), name };
+    const child = { id: uid(), name, avatar: getGender() };
     DATA.children.push(child);
     DATA.activeChildId = child.id;
     saveData();
@@ -153,7 +179,7 @@ function mainHTML() {
 function childTabsHTML() {
   return `
     <div class="child-tabs">
-      ${DATA.children.map((c) => `<button data-id="${c.id}" class="${c.id === DATA.activeChildId ? 'active' : ''}">${escapeHTML(c.name)}</button>`).join('')}
+      ${DATA.children.map((c) => `<button data-id="${c.id}" class="${c.id === DATA.activeChildId ? 'active' : ''}">${c.avatar || '🧒'} ${escapeHTML(c.name)}</button>`).join('')}
     </div>
   `;
 }
@@ -442,8 +468,9 @@ function settingsHTML() {
                 ? confirmRowHTML(c.name, `data-confirm-del-child="${c.id}"`, `data-cancel-del="1"`)
                 : `
               <div class="list-item">
-                <span class="emoji">🧒</span>
+                <span class="emoji">${c.avatar || '🧒'}</span>
                 <span class="name">${escapeHTML(c.name)}</span>
+                <button class="edit-btn" data-edit-child="${c.id}">✎</button>
                 <button class="del-btn" data-del-child="${c.id}">✕</button>
               </div>
             `
@@ -525,29 +552,45 @@ function bindSettings() {
     });
   });
 
-  document.getElementById('child-add-open').addEventListener('click', () => {
-    document.getElementById('child-form-slot').innerHTML = `
+  function openChildForm(editing) {
+    const slot = document.getElementById('child-form-slot');
+    slot.innerHTML = `
       <div class="form-card">
         <div class="form-field">
           <label>아이 이름</label>
-          <input id="child-new-name" type="text" maxlength="10" placeholder="예: 성빈">
+          <input id="child-new-name" type="text" maxlength="10" placeholder="예: 성빈" value="${editing ? escapeHTML(editing.name) : ''}">
         </div>
+        ${genderPickerHTML(editing ? editing.avatar : null)}
         <div class="form-actions">
           <button class="secondary" id="child-form-cancel">취소</button>
-          <button class="primary" id="child-form-save">추가</button>
+          <button class="primary" id="child-form-save">${editing ? '저장' : '추가'}</button>
         </div>
       </div>
     `;
     const nameInput = document.getElementById('child-new-name');
+    const getGender = bindGenderPicker(slot, editing ? editing.avatar : null);
     nameInput.focus();
-    document.getElementById('child-form-cancel').addEventListener('click', () => { document.getElementById('child-form-slot').innerHTML = ''; });
+    document.getElementById('child-form-cancel').addEventListener('click', () => { slot.innerHTML = ''; });
     document.getElementById('child-form-save').addEventListener('click', () => {
       const name = nameInput.value.trim();
       if (!name) { nameInput.focus(); return; }
-      DATA.children.push({ id: uid(), name });
+      if (editing) {
+        Object.assign(editing, { name, avatar: getGender() });
+      } else {
+        DATA.children.push({ id: uid(), name, avatar: getGender() });
+      }
       saveData();
       render();
       openSettings();
+    });
+  }
+
+  document.getElementById('child-add-open').addEventListener('click', () => openChildForm());
+  document.querySelectorAll('[data-edit-child]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const c = DATA.children.find((x) => x.id === btn.dataset.editChild);
+      openChildForm(c);
+      document.getElementById('child-form-slot').scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
   });
 
@@ -616,6 +659,7 @@ function bindSettings() {
 }
 
 const UNIT_OPTIONS = ['분', '장', '줄', '회', '개'];
+const EMOJI_CHOICES = ['🎬', '🔊', '🎙️', '✏️', '📖', '📹', '📚', '🧩', '🎨', '🎵', '👂', '📝', '🔤', '🖊️', '🎧', '📺', '🗣️', '🧠', '⏰', '🃏'];
 
 function activityFormHTML(editing) {
   const a = editing || {};
@@ -625,6 +669,9 @@ function activityFormHTML(editing) {
       <div class="form-field">
         <label>이모지</label>
         <input id="act-emoji" type="text" maxlength="4" value="${escapeHTML(a.emoji || '📝')}" style="width:70px;text-align:center;">
+        <div class="emoji-picker" id="act-emoji-picker">
+          ${EMOJI_CHOICES.map((e) => `<button type="button" class="emoji-pick-btn${e === a.emoji ? ' active' : ''}" data-emoji="${e}">${e}</button>`).join('')}
+        </div>
       </div>
       <div class="form-field">
         <label>활동 이름</label>
@@ -666,6 +713,14 @@ function bindActivityForm(editing) {
   const fixedWrap = document.getElementById('act-fixed-wrap');
   const presetsWrap = document.getElementById('act-presets-wrap');
   let presets = (editing && editing.presets) ? [...editing.presets] : [];
+
+  const emojiInput = document.getElementById('act-emoji');
+  document.querySelectorAll('.emoji-pick-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      emojiInput.value = btn.dataset.emoji;
+      document.querySelectorAll('.emoji-pick-btn').forEach((b) => b.classList.toggle('active', b === btn));
+    });
+  });
 
   function renderPresetChips() {
     document.getElementById('act-preset-list').innerHTML = presets.map((p, i) => `
