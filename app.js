@@ -362,13 +362,13 @@ function chooseStep(max) {
   return Math.max(1, Math.round(step));
 }
 
-function chartsHTML() {
+function chartsHTML(monthPrefix) {
+  monthPrefix = monthPrefix || state.currentDate.slice(0, 7);
   const enabled = DATA.activities.filter((a) => a.enabled);
   if (enabled.length === 0) return '';
-  const [year, month] = state.currentDate.split('-').map(Number);
+  const [year, month] = monthPrefix.split('-').map(Number);
   const total = daysInMonth(year, month - 1);
   const childId = DATA.activeChildId;
-  const monthPrefix = state.currentDate.slice(0, 7);
   const monthEntries = (DATA.entries[childId] && Object.keys(DATA.entries[childId])
     .filter((d) => d.startsWith(monthPrefix))) || [];
 
@@ -516,10 +516,9 @@ function settingsHTML() {
         <div class="settings-group">
           <p class="group-title">데이터</p>
           <div class="data-actions">
-            <button id="data-export">내보내기</button>
-            <button id="data-import">불러오기</button>
+            <button id="data-save-jpg">저장하기</button>
           </div>
-          <input type="file" id="data-import-file" accept="application/json" class="hidden">
+          <div id="save-jpg-form-slot"></div>
           <div style="height:8px"></div>
           <div class="data-actions">
             <button id="data-reset" class="danger">전체 초기화</button>
@@ -527,7 +526,7 @@ function settingsHTML() {
         </div>
 
         <div class="settings-note">
-          이 기록은 이 기기(브라우저)에만 저장돼요. 다른 기기로 옮기고 싶으면 "내보내기"로 파일을 저장한 뒤, 다른 기기에서 "불러오기"로 불러오세요.
+          이 기록은 이 기기(브라우저)에만 저장돼요. "저장하기"로 원하는 달의 활동 기록 그래프를 사진(JPG)으로 저장할 수 있어요.
         </div>
       </div>
     </div>
@@ -656,9 +655,7 @@ function bindSettings() {
     });
   });
 
-  document.getElementById('data-export').addEventListener('click', exportData);
-  document.getElementById('data-import').addEventListener('click', () => document.getElementById('data-import-file').click());
-  document.getElementById('data-import-file').addEventListener('change', importData);
+  document.getElementById('data-save-jpg').addEventListener('click', openSaveJpgForm);
 
   document.getElementById('data-reset').addEventListener('click', (e) => {
     confirmAction(e.currentTarget, '한번 더 누르면 전체 초기화돼요', () => {
@@ -801,39 +798,92 @@ function confirmAction(btn, confirmText, onConfirm) {
   }, 2500);
 }
 
-function exportData() {
-  const blob = new Blob([JSON.stringify(DATA, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `2binmom-english-${todayLocal()}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  showToast('파일로 내보냈어요');
+// ---------- save chart as jpg ----------
+function availableMonths() {
+  const entries = DATA.entries[DATA.activeChildId] || {};
+  const months = new Set(Object.keys(entries).map((d) => d.slice(0, 7)));
+  return [...months].sort().reverse();
 }
 
-function importData(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const parsed = JSON.parse(reader.result);
-      if (!parsed.children || !parsed.activities) throw new Error('invalid');
-      DATA = parsed;
-      if (!DATA.history) DATA.history = {};
-      if (!DATA.entries) DATA.entries = {};
-      saveData();
-      render();
-      showToast('불러왔어요');
-    } catch (err) {
-      showToast('파일을 읽을 수 없어요');
-    }
-  };
-  reader.readAsText(file);
-  e.target.value = '';
+function formatMonthLabel(monthPrefix) {
+  const [y, m] = monthPrefix.split('-');
+  return `${y}년 ${Number(m)}월`;
+}
+
+function openSaveJpgForm() {
+  const slot = document.getElementById('save-jpg-form-slot');
+  const months = availableMonths();
+  if (months.length === 0) {
+    slot.innerHTML = `<p class="settings-note">아직 저장된 기록이 없어요.</p>`;
+    return;
+  }
+  slot.innerHTML = `
+    <div class="form-card">
+      <div class="form-field">
+        <label>저장할 달</label>
+        <select id="jpg-month-select">
+          ${months.map((m) => `<option value="${m}">${formatMonthLabel(m)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-actions">
+        <button class="secondary" id="jpg-form-cancel">취소</button>
+        <button class="primary" id="jpg-form-save">저장</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('jpg-form-cancel').addEventListener('click', () => { slot.innerHTML = ''; });
+  document.getElementById('jpg-form-save').addEventListener('click', (e) => {
+    const month = document.getElementById('jpg-month-select').value;
+    saveChartAsJpg(month, e.currentTarget);
+  });
+}
+
+function saveChartAsJpg(monthPrefix, btn) {
+  if (typeof html2canvas === 'undefined') {
+    showToast('저장 기능을 불러오지 못했어요. 인터넷 연결을 확인해주세요');
+    return;
+  }
+  const chartHTML = chartsHTML(monthPrefix);
+  if (!chartHTML || chartHTML.includes('chart-empty')) {
+    showToast('이 달은 기록이 없어요');
+    return;
+  }
+  const child = DATA.children.find((c) => c.id === DATA.activeChildId);
+  const original = btn.textContent;
+  btn.textContent = '저장 중...';
+  btn.disabled = true;
+
+  const container = document.createElement('div');
+  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:800px;background:#FFF8F6;padding:20px;';
+  container.innerHTML = `
+    <p style="font-family:'Jalnan',sans-serif;font-weight:normal;font-size:18px;color:#E0567A;margin:0 0 4px;">${child ? `${child.avatar || '🧒'} ${escapeHTML(child.name)}` : ''}</p>
+    <p style="font-size:13px;color:rgba(58,42,51,0.5);margin:0 0 16px;">${formatMonthLabel(monthPrefix)} 활동 기록</p>
+    ${chartHTML}
+  `;
+  // 캡처 시 가로 스크롤 대신 전체 달(최대 31일)이 잘리지 않고 다 보이게 강제로 펼침
+  container.querySelectorAll('.chart-scroll, .chart-bars').forEach((el) => { el.style.overflow = 'visible'; el.style.width = 'max-content'; });
+  document.body.appendChild(container);
+
+  html2canvas(container, { backgroundColor: '#FFF8F6', scale: 2 }).then((canvas) => {
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${child ? child.name : 'english-journal'}-${monthPrefix}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(container);
+      document.getElementById('save-jpg-form-slot').innerHTML = '';
+      showToast('사진으로 저장했어요');
+    }, 'image/jpeg', 0.92);
+  }).catch(() => {
+    document.body.removeChild(container);
+    btn.textContent = original;
+    btn.disabled = false;
+    showToast('저장에 실패했어요');
+  });
 }
 
 // ---------- share ----------
