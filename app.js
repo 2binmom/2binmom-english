@@ -376,17 +376,21 @@ function chartsHTML(monthPrefix) {
     return `<p class="chart-empty">이 달에 기록된 활동이 아직 없어요</p>`;
   }
 
+  // 시간(분) 활동은 하나로, 그 외(장/줄/회 등 개수 단위) 활동은 전부 하나로 묶어서 차트 2개만 보여줌
   const groups = {};
-  enabled.forEach((a) => { (groups[a.unit] = groups[a.unit] || []).push(a); });
+  enabled.forEach((a) => {
+    const key = a.unit === '분' ? '분' : '기타';
+    (groups[key] = groups[key] || []).push(a);
+  });
 
-  const blocks = Object.entries(groups).map(([unit, activities]) => chartBlockHTML(activities, unit, total, year, month, monthEntries)).filter(Boolean);
+  const blocks = Object.entries(groups).map(([key, activities]) => chartBlockHTML(activities, key === '분' ? '분' : '', total, year, month, monthEntries)).filter(Boolean);
   if (blocks.length === 0) {
     return `<p class="chart-empty">이 달에 기록된 활동이 아직 없어요</p>`;
   }
   return blocks.join('');
 }
 
-function chartBlockHTML(activities, unit, total, year, month, monthEntries) {
+function chartBlockHTML(activities, axisUnit, total, year, month, monthEntries) {
   const childId = DATA.activeChildId;
   const byDay = new Map();
   for (const dateStr of monthEntries) {
@@ -414,7 +418,7 @@ function chartBlockHTML(activities, unit, total, year, month, monthEntries) {
   const yaxis = `
     <div class="chart-yaxis">
       <div class="track">
-        ${ticks.map((t) => `<span class="tick" style="bottom:${(t / axisMax) * 100}%">${t}${unit}</span>`).join('')}
+        ${ticks.map((t) => `<span class="tick" style="bottom:${(t / axisMax) * 100}%">${t}${axisUnit}</span>`).join('')}
       </div>
       <div class="bottom-spacer"></div>
     </div>
@@ -428,7 +432,7 @@ function chartBlockHTML(activities, unit, total, year, month, monthEntries) {
     const color = weekdayColor(wd);
     let fill = '';
     if (row) {
-      const segs = activities.filter((a) => row[a.id]).map((a) => `<div style="height:${(row[a.id] / dayTotal) * 100}%;background:${a.color};" title="${escapeHTML(a.name)} ${row[a.id]}${unit}"></div>`).join('');
+      const segs = activities.filter((a) => row[a.id]).map((a) => `<div style="height:${(row[a.id] / dayTotal) * 100}%;background:${a.color};" title="${escapeHTML(a.name)} ${row[a.id]}${a.unit}"></div>`).join('');
       fill = `<div class="chart-fill" style="height:${(dayTotal / axisMax) * 100}%">${segs}</div>`;
     }
     return `
