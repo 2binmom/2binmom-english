@@ -642,3 +642,18 @@ main {
   padding: 2px 4px;
   font-size: 15px;
 }
+
+/* ---------- footer ---------- */
+.app-footer {
+  max-width: 480px;
+  margin: 10px auto 0;
+  padding: 18px 16px calc(18px + var(--safe-bottom));
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.7;
+  color: rgba(58,42,51,0.4);
+}
+.onboard-screen .app-footer {
+  margin-top: 30px;
+  padding: 0 16px;
+}

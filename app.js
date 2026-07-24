@@ -130,6 +130,10 @@ function onboardingHTML() {
         ${genderPickerHTML()}
       </div>
       <button class="save-btn" id="ob-submit" style="margin-top:16px;">시작하기</button>
+      <footer class="app-footer">
+        ⚠️ 투빈맘(@2bin_mom)이 직접 개발한 앱입니다.<br>
+        무단 복제·배포·상업적 이용 시 법적 조치될 수 있습니다.
+      </footer>
     </div>
   `;
 }
@@ -171,6 +175,10 @@ function mainHTML() {
       <p class="section-title">${state.currentDate.slice(0, 7).replace('-', '년 ')}월 활동 기록</p>
       <div id="charts-slot">${chartsHTML()}</div>
     </main>
+    <footer class="app-footer">
+      ⚠️ 투빈맘(@2bin_mom)이 직접 개발한 앱입니다.<br>
+      무단 복제·배포·상업적 이용 시 법적 조치될 수 있습니다.
+    </footer>
     ${settingsHTML()}
     <div id="toast"></div>
   `;
