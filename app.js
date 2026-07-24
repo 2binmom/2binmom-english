@@ -95,7 +95,7 @@ function onboardingHTML() {
   return `
     <div class="onboard-screen">
       <img src="icons/icon-192.png" alt="">
-      <h1>2binmom English</h1>
+      <h1>English Journal</h1>
       <p>우리 아이 엄마표영어 기록장이에요.<br>아이 이름을 알려주시면 바로 시작할 수 있어요.</p>
       <div class="form-card">
         <div class="form-field">
@@ -129,7 +129,7 @@ function mainHTML() {
     <header class="app-header">
       <div class="brand">
         <img src="icons/icon-192.png" alt="">
-        <h1>2binmom English</h1>
+        <h1>English Journal</h1>
       </div>
       <div style="display:flex;gap:8px;">
         <button class="icon-btn" id="share-open" aria-label="공유">📤</button>
@@ -705,7 +705,7 @@ function importData(e) {
 function shareApp() {
   const url = location.href.split('#')[0];
   const shareData = {
-    title: '2binmom English — 엄마표영어 기록장',
+    title: 'English Journal — 엄마표영어 기록장',
     text: '우리 아이 엄마표영어 활동을 기록하는 나만의 기록장이에요. 폰에 설치해서 써보세요!',
     url,
   };

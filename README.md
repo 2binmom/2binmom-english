@@ -1,4 +1,4 @@
-# 2binmom English
+# English Journal
 
 우리 아이 엄마표영어 활동을 기록하는 나만의 기록장이에요.
 
