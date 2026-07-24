@@ -181,6 +181,25 @@ main {
   gap: 8px;
 }
 
+.preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.preset-chip {
+  border: none;
+  background: rgba(224,86,122,0.08);
+  color: var(--pink-dark);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12.5px;
+}
+.preset-chip.active {
+  background: var(--pink-main);
+  color: white;
+}
+
 .field-input, .field-number {
   height: 40px;
   border: none;
@@ -402,6 +421,26 @@ main {
   color: rgba(58,42,51,0.3);
   font-size: 15px;
   width: 24px;
+  flex-shrink: 0;
+}
+.list-item .edit-btn {
+  border: none;
+  background: none;
+  color: rgba(58,42,51,0.35);
+  font-size: 15px;
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.preset-edit-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.preset-edit-row input {
+  flex: 1;
+}
+.preset-edit-row .mini-btn {
   flex-shrink: 0;
 }
 

@@ -9,12 +9,12 @@ function uid() {
 
 function defaultActivities() {
   return [
-    { id: uid(), name: '흘려듣기', emoji: '🎬', unit: '분', mode: 'input', fixedAmount: null, enabled: true, color: '#FBBF24' },
-    { id: uid(), name: '집중듣기', emoji: '🔊', unit: '분', mode: 'input', fixedAmount: null, enabled: true, color: '#A78BFA' },
-    { id: uid(), name: '낭독하기', emoji: '🎙️', unit: '분', mode: 'input', fixedAmount: null, enabled: true, color: '#E0567A' },
-    { id: uid(), name: '필사', emoji: '✏️', unit: '줄', mode: 'input', fixedAmount: null, enabled: true, color: '#34D399' },
-    { id: uid(), name: '학습', emoji: '📖', unit: '장', mode: 'input', fixedAmount: null, enabled: true, color: '#38BDF8' },
-    { id: uid(), name: '화상영어', emoji: '📹', unit: '분', mode: 'checkbox', fixedAmount: 25, enabled: true, color: '#FB7185' },
+    { id: uid(), name: '흘려듣기', emoji: '🎬', unit: '분', mode: 'input', fixedAmount: null, presets: [], enabled: true, color: '#FBBF24' },
+    { id: uid(), name: '집중듣기', emoji: '🔊', unit: '분', mode: 'input', fixedAmount: null, presets: ['에픽'], enabled: true, color: '#A78BFA' },
+    { id: uid(), name: '낭독하기', emoji: '🎙️', unit: '분', mode: 'input', fixedAmount: null, presets: [], enabled: true, color: '#E0567A' },
+    { id: uid(), name: '필사', emoji: '✏️', unit: '줄', mode: 'input', fixedAmount: null, presets: [], enabled: true, color: '#34D399' },
+    { id: uid(), name: '학습', emoji: '📖', unit: '장', mode: 'input', fixedAmount: null, presets: [], enabled: true, color: '#38BDF8' },
+    { id: uid(), name: '화상영어', emoji: '📹', unit: '분', mode: 'checkbox', fixedAmount: 25, presets: [], enabled: true, color: '#FB7185' },
   ];
 }
 
@@ -28,6 +28,7 @@ function loadData() {
   if (!raw.activities) raw.activities = defaultActivities();
   if (!raw.entries) raw.entries = {};
   if (!raw.children) raw.children = [];
+  raw.activities.forEach((a) => { if (!Array.isArray(a.presets)) a.presets = []; });
   return raw;
 }
 
@@ -202,9 +203,14 @@ function activityRowHTML(a, existing) {
   }
   const listId = `hist-${a.id}`;
   const historyOpts = (DATA.history[a.id] || []).map((v) => `<option value="${escapeHTML(v)}">`).join('');
+  const currentContent = existing ? existing.content || '' : '';
+  const presetChips = (a.presets || []).length
+    ? `<div class="preset-chips">${a.presets.map((p) => `<button type="button" class="preset-chip${p === currentContent ? ' active' : ''}" data-preset-for="${a.id}" data-preset-value="${escapeHTML(p)}">${escapeHTML(p)}</button>`).join('')}</div>`
+    : '';
   return `
     <div class="activity-row" data-activity="${a.id}" data-mode="input">
       ${label}
+      ${presetChips}
       <div class="field-row">
         <input class="field-input" type="text" list="${listId}" placeholder="내용 (선택)" value="${existing ? escapeHTML(existing.content || '') : ''}">
         <datalist id="${listId}">${historyOpts}</datalist>
@@ -239,6 +245,17 @@ function bindMain() {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       saveDayForm();
+    });
+    form.querySelectorAll('.preset-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const row = chip.closest('.activity-row');
+        const input = row.querySelector('.field-input');
+        const isActive = chip.classList.contains('active');
+        input.value = isActive ? '' : chip.dataset.presetValue;
+        row.querySelectorAll('.preset-chip').forEach((c) => c.classList.remove('active'));
+        if (!isActive) chip.classList.add('active');
+        row.querySelector('.field-number').focus();
+      });
     });
   }
 
@@ -445,8 +462,9 @@ function settingsHTML() {
                 : `
               <div class="list-item">
                 <span class="emoji">${a.emoji}</span>
-                <span class="name">${escapeHTML(a.name)}<br><span class="meta">${a.mode === 'checkbox' ? `완료체크 · ${a.fixedAmount}${a.unit}` : `직접입력 · ${a.unit}`}</span></span>
+                <span class="name">${escapeHTML(a.name)}<br><span class="meta">${a.mode === 'checkbox' ? `완료체크 · ${a.fixedAmount}${a.unit}` : `직접입력 · ${a.unit}${a.presets && a.presets.length ? ` · ${a.presets.length}개 프리셋` : ''}`}</span></span>
                 <button class="toggle ${a.enabled ? 'on' : ''}" data-toggle-activity="${a.id}"></button>
+                <button class="edit-btn" data-edit-activity="${a.id}">✎</button>
                 <button class="del-btn" data-del-activity="${a.id}">✕</button>
               </div>
             `
@@ -574,6 +592,15 @@ function bindSettings() {
     bindActivityForm();
   });
 
+  document.querySelectorAll('[data-edit-activity]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const a = DATA.activities.find((x) => x.id === btn.dataset.editActivity);
+      document.getElementById('activity-form-slot').innerHTML = activityFormHTML(a);
+      bindActivityForm(a);
+      document.getElementById('activity-form-slot').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  });
+
   document.getElementById('data-export').addEventListener('click', exportData);
   document.getElementById('data-import').addEventListener('click', () => document.getElementById('data-import-file').click());
   document.getElementById('data-import-file').addEventListener('change', importData);
@@ -588,52 +615,89 @@ function bindSettings() {
   });
 }
 
-function activityFormHTML() {
+const UNIT_OPTIONS = ['분', '장', '줄', '회', '개'];
+
+function activityFormHTML(editing) {
+  const a = editing || {};
+  const unitOpts = UNIT_OPTIONS.map((u) => `<option value="${u}" ${a.unit === u ? 'selected' : ''}>${u}</option>`).join('');
   return `
-    <div class="form-card">
+    <div class="form-card" data-editing-id="${editing ? editing.id : ''}">
       <div class="form-field">
         <label>이모지</label>
-        <input id="act-emoji" type="text" maxlength="4" value="📝" style="width:70px;text-align:center;">
+        <input id="act-emoji" type="text" maxlength="4" value="${escapeHTML(a.emoji || '📝')}" style="width:70px;text-align:center;">
       </div>
       <div class="form-field">
         <label>활동 이름</label>
-        <input id="act-name" type="text" maxlength="10" placeholder="예: 파닉스 연습">
+        <input id="act-name" type="text" maxlength="10" placeholder="예: 파닉스 연습" value="${escapeHTML(a.name || '')}">
       </div>
       <div class="form-field">
         <label>단위</label>
-        <select id="act-unit">
-          <option value="분">분</option>
-          <option value="장">장</option>
-          <option value="줄">줄</option>
-          <option value="회">회</option>
-          <option value="개">개</option>
-        </select>
+        <select id="act-unit">${unitOpts}</select>
       </div>
       <div class="form-field">
         <label>기록 방식</label>
         <select id="act-mode">
-          <option value="input">직접 입력 (내용 + 숫자)</option>
-          <option value="checkbox">완료 체크 (항상 같은 시간/횟수)</option>
+          <option value="input" ${a.mode !== 'checkbox' ? 'selected' : ''}>직접 입력 (내용 + 숫자)</option>
+          <option value="checkbox" ${a.mode === 'checkbox' ? 'selected' : ''}>완료 체크 (항상 같은 시간/횟수)</option>
         </select>
       </div>
-      <div class="form-field hidden" id="act-fixed-wrap">
+      <div class="form-field ${a.mode === 'checkbox' ? '' : 'hidden'}" id="act-fixed-wrap">
         <label>완료 시 자동 기록되는 값</label>
-        <input id="act-fixed" type="number" min="1" placeholder="예: 25">
+        <input id="act-fixed" type="number" min="1" placeholder="예: 25" value="${a.fixedAmount || ''}">
+      </div>
+      <div class="form-field ${a.mode === 'checkbox' ? 'hidden' : ''}" id="act-presets-wrap">
+        <label>자주 쓰는 값 (선택, 예: 에픽)</label>
+        <div class="preset-edit-row">
+          <input id="act-preset-input" type="text" placeholder="추가할 값 입력">
+          <button type="button" class="mini-btn cancel" id="act-preset-add">추가</button>
+        </div>
+        <div class="preset-chips" id="act-preset-list"></div>
       </div>
       <div class="form-actions">
         <button class="secondary" id="act-form-cancel">취소</button>
-        <button class="primary" id="act-form-save">추가</button>
+        <button class="primary" id="act-form-save">${editing ? '저장' : '추가'}</button>
       </div>
     </div>
   `;
 }
 
-function bindActivityForm() {
+function bindActivityForm(editing) {
   const modeSel = document.getElementById('act-mode');
   const fixedWrap = document.getElementById('act-fixed-wrap');
+  const presetsWrap = document.getElementById('act-presets-wrap');
+  let presets = (editing && editing.presets) ? [...editing.presets] : [];
+
+  function renderPresetChips() {
+    document.getElementById('act-preset-list').innerHTML = presets.map((p, i) => `
+      <button type="button" class="preset-chip" data-remove-preset="${i}">${escapeHTML(p)} ✕</button>
+    `).join('');
+    document.querySelectorAll('[data-remove-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        presets.splice(Number(btn.dataset.removePreset), 1);
+        renderPresetChips();
+      });
+    });
+  }
+  renderPresetChips();
+
   modeSel.addEventListener('change', () => {
-    fixedWrap.classList.toggle('hidden', modeSel.value !== 'checkbox');
+    const isCheckbox = modeSel.value === 'checkbox';
+    fixedWrap.classList.toggle('hidden', !isCheckbox);
+    presetsWrap.classList.toggle('hidden', isCheckbox);
   });
+
+  const presetInput = document.getElementById('act-preset-input');
+  document.getElementById('act-preset-add').addEventListener('click', () => {
+    const v = presetInput.value.trim();
+    if (!v || presets.includes(v)) { presetInput.value = ''; return; }
+    presets.push(v);
+    presetInput.value = '';
+    renderPresetChips();
+  });
+  presetInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('act-preset-add').click(); }
+  });
+
   document.getElementById('act-form-cancel').addEventListener('click', () => { document.getElementById('activity-form-slot').innerHTML = ''; });
   document.getElementById('act-form-save').addEventListener('click', () => {
     const name = document.getElementById('act-name').value.trim();
@@ -642,8 +706,12 @@ function bindActivityForm() {
     const unit = document.getElementById('act-unit').value;
     const mode = modeSel.value;
     const fixedAmount = mode === 'checkbox' ? Number(document.getElementById('act-fixed').value || 0) || 1 : null;
-    const color = COLOR_PALETTE[DATA.activities.length % COLOR_PALETTE.length];
-    DATA.activities.push({ id: uid(), name, emoji, unit, mode, fixedAmount, enabled: true, color });
+    if (editing) {
+      Object.assign(editing, { name, emoji, unit, mode, fixedAmount, presets: mode === 'checkbox' ? [] : presets });
+    } else {
+      const color = COLOR_PALETTE[DATA.activities.length % COLOR_PALETTE.length];
+      DATA.activities.push({ id: uid(), name, emoji, unit, mode, fixedAmount, presets: mode === 'checkbox' ? [] : presets, enabled: true, color });
+    }
     saveData();
     render();
     openSettings();
